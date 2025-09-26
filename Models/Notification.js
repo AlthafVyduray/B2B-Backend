@@ -11,7 +11,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ["booking", "success", "system"],
+    enum: ["booking", "success", "system", "cancel"],
     default: "system",
     required: true,
   },
@@ -27,14 +27,14 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: function () {
-      return this.type === "booking" || this.type === "payment";
+      return this.type === "booking" || this.type === "success" || this.type === "cancel";
     },
   },
   booking: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Booking",
     required: function () {
-      return this.type === "booking" || this.type === "payment";
+      return this.type === "booking" || this.type === "success" || this.type === "cancel";
     },
   },
 }, { timestamps: true });

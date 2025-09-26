@@ -1,69 +1,100 @@
 import Booking from "../../Models/Booking.js";
 import Notification from "../../Models/Notification.js"
+import DefaultPackageBooking from "../../Models/DefaultPackageBooking.js"
 
 // Get all bookings for admin dashboard
 // controllers/bookingController.js (or wherever your allBookings lives)
+// at top of file
+// const Booking = require("../models/Booking");
+// const DefaultPackageBooking = require("../models/DefaultPackageBooking");
+// or ES imports if you use them
+
 export const allBookings = async (req, res) => {
   try {
     const { stateFilter = "", searchTerm = "", page = 1, limit = 10 } = req.query;
-
     const pageNumber = parseInt(page, 10) || 1;
     const limitNumber = parseInt(limit, 10) || 10;
     const skip = (pageNumber - 1) * limitNumber;
 
-    // Build filter
-    let filter = {};
+    // Build a match object to apply after union (applies to unified docs)
+    const match = {};
     if (stateFilter) {
-      filter["contact.state"] = { $regex: stateFilter, $options: "i" };
+      match["contact.state"] = { $regex: stateFilter, $options: "i" };
     }
     if (searchTerm) {
-      filter.$or = [
+      match.$or = [
         { "contact.email": { $regex: searchTerm, $options: "i" } },
         { "contact.fullName": { $regex: searchTerm, $options: "i" } }
       ];
     }
 
-    // Total count
-    const total = await Booking.countDocuments(filter);
+    const bookingColl = Booking.collection.name; // e.g. "bookings"
+    const dpbColl = DefaultPackageBooking.collection.name; // e.g. "defaultpackagebookings"
 
-    // Fetch bookings with pagination
-    const bookings = await Booking.find(filter)
-      .populate("user_id", "fullName state email mobile_number")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNumber)
-      .lean();
+    // Aggregation pipeline that preserves original document fields and only adds `source`.
+    const pipeline = [
+      // Keep original Booking doc fields, just attach a source marker
+      { $addFields: { source: "booking" } },
 
-    // Aggregate stats: counts and revenue (respecting filter)
-    const statsAgg = await Booking.aggregate([
-    { $match: filter },
-    {
-      $group: {
-        _id: null,
-        totalBookings: { $sum: 1 },
-        pendingBookings: {
-          $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] }
-        },
-        confirmedBookings: {
-          $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] }
-        },
-        cancelledBookings: {
-          $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] }
-        },
-        totalRevenue: {
-          $sum: {
-            $cond: [
-              { $eq: ["$status", "confirmed"] },
-              { $ifNull: ["$pricing.base_total", 0] },
-              0
-            ]
-          }
+      // Union with DefaultPackageBooking collection; preserve original dpb fields + attach source marker
+      {
+        $unionWith: {
+          coll: dpbColl,
+          pipeline: [
+            { $addFields: { source: "defaultPackageBooking" } }
+          ]
+        }
+      },
+
+      // Apply filters across the unified stream
+      { $match: match },
+
+      // Sort most recent first (uses createdAt if present in docs)
+      { $sort: { createdAt: -1 } },
+
+      // Produce stats, total count, and paginated data in a single facet
+      {
+        $facet: {
+          stats: [
+            {
+              $group: {
+                _id: null,
+                totalBookings: { $sum: 1 },
+                pendingBookings: {
+                  $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] }
+                },
+                confirmedBookings: {
+                  $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] }
+                },
+                cancelledBookings: {
+                  $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] }
+                },
+                totalRevenue: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$status", "confirmed"] },
+                      { $ifNull: ["$pricing.base_total", 0] },
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          totalCount: [{ $count: "count" }],
+          data: [
+            { $skip: skip },
+            { $limit: limitNumber }
+            // we intentionally do not $project here so the original fields remain unchanged
+          ]
         }
       }
-    }
-  ]);
+    ];
 
-    const stats = statsAgg[0] || {
+    const aggResult = await Booking.aggregate(pipeline).allowDiskUse(true);
+    const result = aggResult[0] || { stats: [], totalCount: [], data: [] };
+
+    const statsAgg = result.stats[0] || {
       totalBookings: 0,
       pendingBookings: 0,
       confirmedBookings: 0,
@@ -71,24 +102,33 @@ export const allBookings = async (req, res) => {
       totalRevenue: 0
     };
 
+    const totalCount = result.totalCount[0] ? result.totalCount[0].count : 0;
+    const docs = result.data || [];
+
     return res.status(200).json({
-      message: "All bookings fetched successfully",
-      bookings,
-      stats,
+      message: "Combined bookings fetched successfully",
+      bookings: docs, // original documents + `source` field
+      stats: {
+        totalBookings: statsAgg.totalBookings,
+        pendingBookings: statsAgg.pendingBookings,
+        confirmedBookings: statsAgg.confirmedBookings,
+        cancelledBookings: statsAgg.cancelledBookings,
+        totalRevenue: statsAgg.totalRevenue
+      },
       pagination: {
-        total: total,
+        total: totalCount,
         page: pageNumber,
         limit: limitNumber,
-        totalPages: Math.ceil(total / limitNumber),
-      },
+        totalPages: Math.ceil(totalCount / limitNumber)
+      }
     });
   } catch (error) {
-    return res.status(500).json({
-      message: "Server Error",
-      error: error.message
-    });
+    console.error("allBookingsCombined error:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
 
 
 
@@ -98,8 +138,13 @@ export const deleteBooking = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const deletedBooking = await Booking.findByIdAndDelete(id);
+    let type = "normal"
+    let deletedBooking = await Booking.findByIdAndDelete(id);
 
+    if (!deletedBooking) {
+      type = "default"
+      deletedBooking = await DefaultPackageBooking.findByIdAndDelete(id)
+    }
     if (!deletedBooking) {
       return res.status(404).json({
         message: "Booking not found",
@@ -109,6 +154,7 @@ export const deleteBooking = async (req, res) => {
     return res.status(200).json({
       message: "Booking deleted successfully",
       deletedBooking,
+      type
     });
   } catch (error) {
     return res.status(500).json({
@@ -188,6 +234,46 @@ export const updateBooking = async (req, res) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
+    return res.status(200).json({ booking: updatedBooking, source: "booking" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const updateDefaultPackageBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+    console.log(data)
+
+    // Transform flat formData → schema format
+    const updateData = {
+      contact: data.contact,
+      package_id: data.package_id,
+      package_name: data.package_name,
+
+      
+
+      dates: data.dates,
+
+      guests: data.guests,
+
+  
+      pricing: data.pricing
+
+    };
+
+    // Update booking
+    const updatedBooking = await DefaultPackageBooking.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedBooking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
     return res.status(200).json({ booking: updatedBooking });
   } catch (error) {
     console.error(error);
@@ -200,7 +286,14 @@ export const confirmBooking = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const updatedBooking = await Booking.findById(id);
+    let type = "normal"
+    let updatedBooking = await Booking.findById(id);
+
+
+    if (!updatedBooking) {
+      type = "default"
+      updatedBooking = await DefaultPackageBooking.findById(id)
+    }
 
     if (!updatedBooking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -225,7 +318,57 @@ export const confirmBooking = async (req, res) => {
 
     return res.status(200).json({
       message: "Booking confirmed successfully",
-      booking: updatedBooking
+      booking: updatedBooking,
+      type
+    });
+  } catch (error) {
+    console.log(error)
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({ message: error.message, errors });
+    }
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+
+export const cancelBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    let type = "normal"
+    let updatedBooking = await Booking.findById(id);
+
+    if (!updatedBooking) {
+      type = "default"
+      updatedBooking = await DefaultPackageBooking.findById(id);
+    }
+
+    if (!updatedBooking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+    
+    if (updatedBooking.status === "cancelled") {
+      return res.status(200).json({ message: "Booking already cancelled" });
+    }
+
+    updatedBooking.status = "cancelled";
+    await updatedBooking.save();
+
+    const notification = new Notification({
+      title: "Booking Cancellation",
+      type: "cancel",
+      recipient: updatedBooking.user_id,
+      booking: updatedBooking._id,
+      message: `Booking id:${updatedBooking._id} ${updatedBooking.package_name} on ${updatedBooking.dates?.pickup_date} is cancelled`
+    });
+
+    await notification.save();
+
+    return res.status(200).json({
+      message: "Booking cancelled successfully",
+      booking: updatedBooking,
+      type
     });
   } catch (error) {
     console.log(error)

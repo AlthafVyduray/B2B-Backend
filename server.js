@@ -60,6 +60,6 @@ app.use("/api/admin/password", passwordRoute)
 const PORT = process.env.PORT || 5000
 
 app.listen(PORT, async () => {
-    console.log("Server is Running at PORT 3000");
+    console.log("Server is Running at PORT 5000");
     await connectDB()
 });

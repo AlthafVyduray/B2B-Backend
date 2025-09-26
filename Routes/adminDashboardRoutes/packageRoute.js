@@ -5,7 +5,9 @@ import {
   createPackage,
   getAllPackages,
   deletePackage,
-  updatePackage
+  updatePackage,
+  createDefaultPackage,
+  updateDefaultPackage
 } from '../../Controllers/adminDAshboardRoutes/packageController.js';
 import { upload } from '../../Middlewares/uploadItinerary.js'; // Multer + Cloudinary middleware
 
@@ -43,6 +45,24 @@ router.delete(
   protectRoute,
   adminOnly,
   deletePackage
+);
+
+
+// Create Default Package with multiple itinerary images upload
+router.post(
+  '/default-package',
+  protectRoute,
+  adminOnly,
+  upload.array('itineraryImages', 10), // Accept up to 10 images with field name 'itineraryImages'
+  createDefaultPackage
+);
+
+router.put(
+  '/default-package/:id',
+  protectRoute,
+  adminOnly,
+  upload.array('itineraryImages', 10), // Accept up to 10 images with field name 'itineraryImages'
+  updateDefaultPackage
 );
 
 export default router;
