@@ -2,6 +2,7 @@ import Package from "../../Models/Package.js";
 import Itinerary from "../../Models/Itinerary.js";
 import cloudinary from "../../lib/cloudinary.js";
 import DefaultPackage from "../../Models/DefaultPackage.js";
+import Pricing from "../../Models/Pricing.js";
 
 
 //create packages for admin dashboard
@@ -61,11 +62,14 @@ export const createPackage = async (req, res) => {
 
     return res.status(201).json({ message: "Package created", package: savedPackage });
   } catch (error) {
-    if (err.name === "ValidationError") {
+    if (error.name === "ValidationError") {
       // Extract all validation error messages
-      const errors = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ message: err.message, errors });
+      
+      const errors = Object.values(error.errors).map(e => e.message);
+      console.log(errors)
+      return res.status(400).json({ message: error.message, errors });
     }
+    console.log(error)
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -183,30 +187,41 @@ export const deletePackage = async (req, res) => {
   try {
     const { id } = req.params;
 
-    let type = "normal"
+    let type = "normal";
     let pkg = await Package.findById(id).populate("itineraries");
 
     if (!pkg) {
-      type = "default"
+      type = "default";
       pkg = await DefaultPackage.findById(id).populate("itineraries");
     }
     if (!pkg) return res.status(404).json({ message: "Package not found" });
 
     // Delete all itinerary images & docs
     for (const itin of pkg.itineraries) {
-      await cloudinary.uploader.destroy(itin.imagePublicId);
+      if (itin.imagePublicId) {
+        await cloudinary.uploader.destroy(itin.imagePublicId);
+      }
       await Itinerary.findByIdAndDelete(itin._id);
     }
+
+    // Delete package itself
     if (type === "normal") {
       await Package.findByIdAndDelete(id);
     } else {
       await DefaultPackage.findByIdAndDelete(id);
     }
-    
 
-    return res.status(200).json({ message: "Package and its itineraries deleted" });
+    //Delete associated pricing only after package deletion succeeded
+    await Pricing.deleteMany({ package_id: pkg._id });
+
+    return res
+      .status(200)
+      .json({ message: "Package, its itineraries, and pricing deleted" });
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error: error.message });
+    console.log(error)
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
   }
 };
 
@@ -331,9 +346,13 @@ export const createDefaultPackage = async (req, res) => {
   } catch (error) {
     console.error("createDefaultPackage error:", error);
     if (error.name === "ValidationError") {
-      const errors = Object.values(error.errors).map((e) => e.message);
+      console.log(error)
+      const errors = Object.values(error.errors).map((e) => { e.message; console.log(e.message)});
+
       return res.status(400).json({ message: "Validation error", errors });
     }
+      console.log(error)
+
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -423,7 +442,7 @@ export const updateDefaultPackage = async (req, res) => {
     pkg.itineraries = finalItineraryIds;
 
     const updatedPackage = await pkg.save();
-console.log(pkg.inclusions)
+
     return res
       .status(200)
       .json({ message: "Package updated", package: updatedPackage });

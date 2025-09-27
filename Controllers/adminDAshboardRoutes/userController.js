@@ -6,7 +6,7 @@ export const createUser = async (req, res) => {
   try {
     const { email, password, role } = req.body;
     
-
+console.log(email, password, role)
     if (!email || !password || !role) {
       return res.status(400).json({ message: "Email, password, and role are required" });
     }

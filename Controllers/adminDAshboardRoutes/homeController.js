@@ -1,35 +1,43 @@
 import Register from "../../Models/Register.js";
 import Booking from "../../Models/Booking.js";
+import DefaultPackageBooking from "../../Models/DefaultPackageBooking.js";
 
 export const getCount = async (req, res) => {
   try {
+    // Count total registered users
     const registerCount = await Register.countDocuments();
-    const bookingCount = await Booking.countDocuments();
 
-    const revenueResult = await Booking.aggregate([
+    // Count total bookings (normal + default)
+    const bookingCount = await Booking.countDocuments();
+    const defaultBookingCount = await DefaultPackageBooking.countDocuments();
+    const totalBookings = bookingCount + defaultBookingCount;
+
+    // Calculate total revenue from confirmed bookings (normal + default)
+    const revenuePipeline = [
+      {
+        $match: { status: "confirmed" }
+      },
       {
         $group: {
           _id: null,
-          totalRevenue: {
-            $sum: {
-              $cond: [
-                { $eq: ["$status", "confirmed"] },
-                { $ifNull: ["$pricing.base_total", 0] },
-                0
-              ]
-            }
-          }
+          totalRevenue: { $sum: { $ifNull: ["$pricing.base_total", 0] } }
         }
       }
+    ];
+
+    const [bookingRevenueResult, defaultRevenueResult] = await Promise.all([
+      Booking.aggregate(revenuePipeline),
+      DefaultPackageBooking.aggregate(revenuePipeline)
     ]);
 
     const totalRevenue =
-      revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0;
+      (bookingRevenueResult[0]?.totalRevenue || 0) +
+      (defaultRevenueResult[0]?.totalRevenue || 0);
 
     return res.status(200).json({
       counts: {
         Agents: registerCount,
-        Bookings: bookingCount,
+        Bookings: totalBookings,
         Revenue: totalRevenue
       }
     });
@@ -39,3 +47,4 @@ export const getCount = async (req, res) => {
       .json({ message: "Error fetching counts", error: error.message });
   }
 };
+

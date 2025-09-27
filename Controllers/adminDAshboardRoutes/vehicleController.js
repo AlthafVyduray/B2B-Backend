@@ -44,6 +44,7 @@ export const updateVehicle = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, capacity, price, type } = req.body;
+   
     
     if (!name && !capacity && !price && !type) {
       return res.status(400).json({
@@ -53,9 +54,15 @@ export const updateVehicle = async (req, res) => {
 
     const updatedVehicle = await Vehicle.findByIdAndUpdate(
       id,
-      { name, capacity, price, type },
+      { 
+        ...(name && { name }),
+        ...(capacity && { capacity }),
+        ...(price && { price }),
+        ...(type && { type }),
+      },
       { new: true, runValidators: true }
     );
+
 
     if (!updatedVehicle) {
       return res.status(404).json({ message: "Vehicle not found" });

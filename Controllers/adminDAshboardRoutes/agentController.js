@@ -34,7 +34,7 @@ export const getAllAgents = async (req, res) => {
       .sort({ createdAt: -1 });
 
     // Get total count for pagination
-    const totalAgents = await Register.countDocuments(filter);
+    const totalAgents = await Register.countDocuments({ role: "Agent" });
 
     // Status counts
     const statusCounts = await Register.aggregate([

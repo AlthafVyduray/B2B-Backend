@@ -16,85 +16,33 @@ export const allBookings = async (req, res) => {
     const limitNumber = parseInt(limit, 10) || 10;
     const skip = (pageNumber - 1) * limitNumber;
 
-    // Build a match object to apply after union (applies to unified docs)
-    const match = {};
-    if (stateFilter) {
-      match["contact.state"] = { $regex: stateFilter, $options: "i" };
-    }
-    if (searchTerm) {
-      match.$or = [
-        { "contact.email": { $regex: searchTerm, $options: "i" } },
-        { "contact.fullName": { $regex: searchTerm, $options: "i" } }
-      ];
-    }
+    const dpbColl = DefaultPackageBooking.collection.name;
 
-    const bookingColl = Booking.collection.name; // e.g. "bookings"
-    const dpbColl = DefaultPackageBooking.collection.name; // e.g. "defaultpackagebookings"
-
-    // Aggregation pipeline that preserves original document fields and only adds `source`.
-    const pipeline = [
-      // Keep original Booking doc fields, just attach a source marker
+    // --- Pipeline for total stats (all documents, unfiltered) ---
+    const totalStatsPipeline = [
       { $addFields: { source: "booking" } },
-
-      // Union with DefaultPackageBooking collection; preserve original dpb fields + attach source marker
       {
         $unionWith: {
           coll: dpbColl,
-          pipeline: [
-            { $addFields: { source: "defaultPackageBooking" } }
-          ]
+          pipeline: [{ $addFields: { source: "defaultPackageBooking" } }]
         }
       },
-
-      // Apply filters across the unified stream
-      { $match: match },
-
-      // Sort most recent first (uses createdAt if present in docs)
-      { $sort: { createdAt: -1 } },
-
-      // Produce stats, total count, and paginated data in a single facet
       {
-        $facet: {
-          stats: [
-            {
-              $group: {
-                _id: null,
-                totalBookings: { $sum: 1 },
-                pendingBookings: {
-                  $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] }
-                },
-                confirmedBookings: {
-                  $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] }
-                },
-                cancelledBookings: {
-                  $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] }
-                },
-                totalRevenue: {
-                  $sum: {
-                    $cond: [
-                      { $eq: ["$status", "confirmed"] },
-                      { $ifNull: ["$pricing.base_total", 0] },
-                      0
-                    ]
-                  }
-                }
-              }
-            }
-          ],
-          totalCount: [{ $count: "count" }],
-          data: [
-            { $skip: skip },
-            { $limit: limitNumber }
-            // we intentionally do not $project here so the original fields remain unchanged
-          ]
+        $group: {
+          _id: null,
+          totalBookings: { $sum: 1 },
+          pendingBookings: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+          confirmedBookings: { $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] } },
+          cancelledBookings: { $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] } },
+          totalRevenue: {
+            $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, { $ifNull: ["$pricing.base_total", 0] }, 0] }
+          }
         }
       }
     ];
 
-    const aggResult = await Booking.aggregate(pipeline).allowDiskUse(true);
-    const result = aggResult[0] || { stats: [], totalCount: [], data: [] };
-
-    const statsAgg = result.stats[0] || {
+    const totalStatsResult = await Booking.aggregate(totalStatsPipeline).allowDiskUse(true);
+    const stats = totalStatsResult[0] || {
       totalBookings: 0,
       pendingBookings: 0,
       confirmedBookings: 0,
@@ -102,19 +50,44 @@ export const allBookings = async (req, res) => {
       totalRevenue: 0
     };
 
-    const totalCount = result.totalCount[0] ? result.totalCount[0].count : 0;
-    const docs = result.data || [];
+    // --- Pipeline for filtered paginated documents ---
+    const match = {};
+    if (stateFilter) match["contact.state"] = { $regex: stateFilter, $options: "i" };
+    if (searchTerm) {
+      match.$or = [
+        { "contact.email": { $regex: searchTerm, $options: "i" } },
+        { "contact.fullName": { $regex: searchTerm, $options: "i" } }
+      ];
+    }
+
+    const dataPipeline = [
+      { $addFields: { source: "booking" } },
+      {
+        $unionWith: {
+          coll: dpbColl,
+          pipeline: [{ $addFields: { source: "defaultPackageBooking" } }]
+        }
+      },
+      { $match: match },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limitNumber }
+    ];
+
+    const docs = await Booking.aggregate(dataPipeline).allowDiskUse(true);
+    const filteredTotal = await Booking.aggregate([
+      { $addFields: { source: "booking" } },
+      { $unionWith: { coll: dpbColl, pipeline: [{ $addFields: { source: "defaultPackageBooking" } }] } },
+      { $match: match },
+      { $count: "count" }
+    ]);
+
+    const totalCount = filteredTotal[0] ? filteredTotal[0].count : 0;
 
     return res.status(200).json({
       message: "Combined bookings fetched successfully",
-      bookings: docs, // original documents + `source` field
-      stats: {
-        totalBookings: statsAgg.totalBookings,
-        pendingBookings: statsAgg.pendingBookings,
-        confirmedBookings: statsAgg.confirmedBookings,
-        cancelledBookings: statsAgg.cancelledBookings,
-        totalRevenue: statsAgg.totalRevenue
-      },
+      bookings: docs,
+      stats, // now this contains the totals of all documents
       pagination: {
         total: totalCount,
         page: pageNumber,
@@ -127,10 +100,6 @@ export const allBookings = async (req, res) => {
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-
-
-
 
 
 //delete booking for admin dashboard
