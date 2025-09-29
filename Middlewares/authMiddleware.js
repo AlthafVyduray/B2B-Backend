@@ -54,7 +54,7 @@ export const adminOnly = (req, res, next) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    if (req.user.role !== "Admin" && req.user.role !== "Moderator") {
+    if (req.user.role !== "Admin" && req.user.role !== "Super Admin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 

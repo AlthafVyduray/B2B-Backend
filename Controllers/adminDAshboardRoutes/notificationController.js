@@ -60,7 +60,6 @@ export const getAllNotifications = async (req, res) => {
 export const addNotification = async (req, res) => {
   try {
     const { notification } = req.body;
-    console.log(notification)
     if (!notification.message && !notification.title) {
       return res.status(400).json({ message: "Notification title and message is required" });
     }
@@ -73,7 +72,6 @@ export const addNotification = async (req, res) => {
       notification: newNotification,
     });
   } catch (error) {
-    console.log(error)
     return res.status(500).json({
       message: "Server Error",
       error: error.message,

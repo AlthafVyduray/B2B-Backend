@@ -214,7 +214,6 @@ export const updateDefaultPackageBooking = async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
-    console.log(data)
 
     // Transform flat formData → schema format
     const updateData = {
@@ -291,7 +290,6 @@ export const confirmBooking = async (req, res) => {
       type
     });
   } catch (error) {
-    console.log(error)
     if (error.name === "ValidationError") {
       const errors = Object.values(error.errors).map(e => e.message);
       return res.status(400).json({ message: error.message, errors });
@@ -340,7 +338,6 @@ export const cancelBooking = async (req, res) => {
       type
     });
   } catch (error) {
-    console.log(error)
     if (error.name === "ValidationError") {
       const errors = Object.values(error.errors).map(e => e.message);
       return res.status(400).json({ message: error.message, errors });

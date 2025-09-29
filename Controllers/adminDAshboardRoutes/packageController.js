@@ -66,10 +66,8 @@ export const createPackage = async (req, res) => {
       // Extract all validation error messages
       
       const errors = Object.values(error.errors).map(e => e.message);
-      console.log(errors)
       return res.status(400).json({ message: error.message, errors });
     }
-    console.log(error)
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -82,7 +80,6 @@ export const getAllPackages = async (req, res) => {
     const packages = await Package.find().populate("itineraries");
     return res.status(200).json({ packages, defaultPackages });
   } catch (error) {
-    console.log(error)
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -218,7 +215,6 @@ export const deletePackage = async (req, res) => {
       .status(200)
       .json({ message: "Package, its itineraries, and pricing deleted" });
   } catch (error) {
-    console.log(error)
     return res
       .status(500)
       .json({ message: "Server error", error: error.message });
@@ -346,12 +342,10 @@ export const createDefaultPackage = async (req, res) => {
   } catch (error) {
     console.error("createDefaultPackage error:", error);
     if (error.name === "ValidationError") {
-      console.log(error)
-      const errors = Object.values(error.errors).map((e) => { e.message; console.log(e.message)});
+      const errors = Object.values(error.errors).map((e) => { e.message});
 
       return res.status(400).json({ message: "Validation error", errors });
     }
-      console.log(error)
 
     return res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -370,8 +364,7 @@ export const updateDefaultPackage = async (req, res) => {
     } = req.body;
     const pricing  = JSON.parse(req.body.pricing);
     const inclusions = JSON.parse(req.body.inclusions);
-    console.log(pricing)
-    console.log(inclusions)
+
     const pkg = await DefaultPackage.findById(id).populate("itineraries");
     if (!pkg) return res.status(404).json({ message: "Package not found" });
 

@@ -68,7 +68,7 @@ export const getHotelsByRating = async (req, res) => {
   try {
     const { starRating } = req.body;
     
-    if (!starRating) {
+    if (starRating === undefined || starRating === null) {
       return res.status(400).json({ message: "Please provide starRating in request body" });
     }
 
@@ -77,12 +77,19 @@ export const getHotelsByRating = async (req, res) => {
       return res.status(400).json({ message: "Rating must be a valid number" });
     }
 
-    const hotels = await Hotel.find({ starRating: { $gte: num } });
+    let hotels;
+    if (starRating === 0) {
+      hotels = await Hotel.find();
+    } else {
+      hotels = await Hotel.find({ starRating: num });
+    }
+
 
     return res.status(200).json({
-      message: `Hotels with rating >= ${num} fetched successfully`,
+      message: `Hotels with rating == ${num} fetched successfully`,
       hotels,
     });
+
   } catch (error) {
     return res.status(500).json({
       message: "Server error",
@@ -98,7 +105,7 @@ export const createBooking = async (req, res) => {
     const user_id = req.user && req.user._id;
     if (!user_id) return res.status(401).json({ message: "Unauthorized" });
 
-    console.log(req.body)
+ 
     const {
       package_name,
       package_id,
@@ -155,7 +162,7 @@ export const createBooking = async (req, res) => {
     };
 
 
-    console.log(asObjectId(package_id))
+ 
     const newBooking = new Booking({
       user_id,
 
@@ -230,10 +237,8 @@ export const createBooking = async (req, res) => {
   } catch (error) {
      if (error.name === "ValidationError") {
        const errors = Object.values(error.errors).map((err) => err.message);
-       console.log(errors)
       return res.status(400).json({ message: "Validation failed", errors });
     }
-    console.log(error)
     return res.status(500).json({ message: "Server error", error: error.message });
     }
   
@@ -337,11 +342,8 @@ export const createDefaultBooking = async (req, res) => {
   } catch (error) {
     if (error.name === "ValidationError") {
       const errors = Object.values(error.errors).map((err) => err.message);
-      console.log(errors)
       return res.status(400).json({ message: "Validation failed", errors });
     }
-      console.log(error)
-
     return res.status(500).json({ message: "Server error", error: error.message });
     }
   
