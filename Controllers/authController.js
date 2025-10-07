@@ -103,11 +103,12 @@ export const loginUser = async (req, res) => {
 
 
     res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      httpOnly: true, // prevents JS access
+      secure: process.env.NODE_ENV === 'production', // HTTPS required
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', // cross-site in production
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
+
 
     return res.status(200).json({
       message: 'Login successful',
@@ -204,12 +205,13 @@ export const logoutUser = async (req, res) => {
       return res.status(400).json({ message: "No active session found" });
     }
 
-    res.clearCookie("token", {
+    res.clearCookie('token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      expires: new Date(0),
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+      path: '/', // match path used when setting cookie
     });
+
 
     return res.status(200).json({ message: "Logout successful" });
   } catch (err) {
