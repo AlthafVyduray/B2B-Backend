@@ -1,6 +1,6 @@
 import express from "express"
 import { protectRoute } from "../Middlewares/authMiddleware.js";
-import { getPackageDetails, getAllPackages, getAllVehicles, getHotelsByRating, createBooking, getBookings, getAdminNotifications, getPricing, createDefaultBooking } from "../Controllers/bookingController.js";
+import { getPackageDetails, getAllPackages, getAllVehicles, getHotelsByRating, createBooking, getBookings, changeStatus, getAdminNotifications, getPricing, createDefaultBooking } from "../Controllers/bookingController.js";
 
 const router = express.Router();
 
@@ -15,6 +15,7 @@ router.post("/book-default-package", protectRoute, createDefaultBooking);
 
 
 router.get("/bookings", protectRoute, getBookings);
+router.put("/bookings/status/:id", protectRoute, changeStatus)
 // router.delete("/bookings/:id", protectRoute, deleteBooking);
 
 router.get("/notifications", protectRoute, getAdminNotifications);

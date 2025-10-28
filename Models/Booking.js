@@ -38,69 +38,85 @@
 // }, {
 //   timestamps: true
 // });
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const bookingSchema = new mongoose.Schema({
-  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Register', required: true },
-  contact: {
-    name: { type: String, trim: true },
-    email: { type: String, trim: true },
-    mobile_number: { type: String, trim: true },
-    state: { type: String, trim: true }
-  },
-  
-  package_id: { type: mongoose.Schema.Types.ObjectId, ref: "Package", required: true },
-  package_name: { type: String, required: true },
-  
-  vehicle_id: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
-  vehicle_name: String,
+const bookingSchema = new mongoose.Schema(
+  {
+    user_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Register",
+      required: true,
+    },
+    contact: {
+      name: { type: String, trim: true },
+      email: { type: String, trim: true },
+      mobile_number: { type: String, trim: true },
+      state: { type: String, trim: true },
+    },
+    client_contact: {
+      name: { type: String, trim: true },
+      email: { type: String, trim: true },
+      phone: { type: String, trim: true },
+    },
 
-  dates: {
-    pickup_date: Date,
-    pickup_time: String,
-    pickup_location: String,
-    drop_date: Date,
-    drop_time: String,
-    drop_location: String,
-  },
+    package_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Package",
+      required: true,
+    },
+    package_name: { type: String, required: true },
 
-  guests: {
-    adults_total: { type: Number, min: 1, required: true },
-    children: { type: Number, default: 0 },
-    infants: { type: Number, default: 0 },
-  },
+    vehicle_id: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
+    vehicle_name: String,
 
-  extras: {
-    entry_ticket_needed: { type: Boolean, default: false },
-    snow_world_needed: { type: Boolean, default: false },
-    breakfast: { type: Boolean, default: false }, 
-    lunchVeg: { type: Boolean, default: false }, 
-    lunchNonVeg: { type: Boolean, default: false }, 
-    guideNeeded: { type: Boolean, default: false },
-  },
+    dates: {
+      pickup_date: Date,
+      pickup_time: String,
+      pickup_location: String,
+      drop_date: Date,
+      drop_time: String,
+      drop_location: String,
+    },
 
-  hotel_id: { type: mongoose.Schema.Types.ObjectId, ref: "Hotel" },
-  hotel: {
-    hotel_name: {type: String},
-    food_plan: {type: String},
-    rooms: { type: Number, default: 0 },
-    extra_beds: { type: Number, default: 0 },
+    guests: {
+      adults_total: { type: Number, min: 1, required: true },
+      children: { type: Number, default: 0 },
+      infants: { type: Number, default: 0 },
+    },
+
+    extras: {
+      entry_ticket_needed: { type: Boolean, default: false },
+      snow_world_needed: { type: Boolean, default: false },
+      breakfast: { type: Boolean, default: false },
+      lunchVeg: { type: Boolean, default: false },
+      lunchNonVeg: { type: Boolean, default: false },
+      guideNeeded: { type: Boolean, default: false },
+    },
+
+    hotel_id: { type: mongoose.Schema.Types.ObjectId, ref: "Hotel" },
+    hotel: {
+      hotel_name: { type: String },
+      food_plan: { type: String },
+      rooms: { type: Number, default: 0 },
+      extra_beds: { type: Number, default: 0 },
+    },
+
+    pricing: {
+      agent_commission: { type: Number, default: 0 },
+      base_total: { type: Number, required: true },
+      total_amount: { type: Number, required: true },
+    },
+
+    status: {
+      type: String,
+      enum: ["quoted", "confirmed", "pending", "booked", "cancelled"],
+      default: "quoted",
+    },
   },
-  
-  pricing: {
-    agent_commission: {type: Number, default: 0},
-    base_total: {type: Number, required: true},
-    total_amount: { type: Number, required: true }
-  },
-  
-  status: {
-    type: String,
-    enum: ["pending", "confirmed", "cancelled"],
-    default: "pending"  
-  }, 
-}, {
-  timestamps: true
-});
+  {
+    timestamps: true,
+  }
+);
 
 const Booking = mongoose.model("Booking", bookingSchema);
 

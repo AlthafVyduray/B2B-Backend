@@ -8,7 +8,7 @@ import {
   updatePackage,
   createDefaultPackage,
   updateDefaultPackage
-} from '../../Controllers/adminDAshboardRoutes/packageController.js';
+} from '../../Controllers/adminDashboardControllers/packageController.js';
 import { upload } from '../../Middlewares/uploadItinerary.js'; // Multer + Cloudinary middleware
 
 const router = express.Router();

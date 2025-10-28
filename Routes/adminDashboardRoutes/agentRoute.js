@@ -1,7 +1,7 @@
 import express from "express"
 
 import { protectRoute, adminOnly } from "../../Middlewares/authMiddleware.js";
-import {getAllAgents,approveAgent,rejectAgent} from "../../Controllers/adminDAshboardRoutes/agentController.js"
+import {getAllAgents,approveAgent,rejectAgent} from "../../Controllers/adminDashboardControllers/agentController.js"
 
 const router = express.Router()
 

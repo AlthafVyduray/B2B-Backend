@@ -1,46 +1,48 @@
-import Package from '../Models/Package.js';
-import Vehicle from '../Models/Vehicle.js';
-import Hotel from '../Models/Hotel.js';
-import Booking from '../Models/Booking.js';
-import Register from '../Models/Register.js';
-import Notification from "../Models/Notification.js"
-import Pricing from '../Models/Pricing.js';
-import mongoose from 'mongoose';
-import DefaultPackage from '../Models/DefaultPackage.js';
-import DefaultPackageBooking from '../Models/DefaultPackageBooking.js';
+import Package from "../Models/Package.js";
+import Vehicle from "../Models/Vehicle.js";
+import Hotel from "../Models/Hotel.js";
+import Booking from "../Models/Booking.js";
+import Register from "../Models/Register.js";
+import Notification from "../Models/Notification.js";
+import Pricing from "../Models/Pricing.js";
+import mongoose from "mongoose";
+import DefaultPackage from "../Models/DefaultPackage.js";
+import DefaultPackageBooking from "../Models/DefaultPackageBooking.js";
 
 //controller for get specific package details with itineraries for booking page
 export const getPackageDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const pkg = await Package.findById(id).populate('itineraries');
+    const pkg = await Package.findById(id).populate("itineraries");
 
     if (!pkg) {
-      return res.status(404).json({ message: 'Package not found' });
+      return res.status(404).json({ message: "Package not found" });
     }
 
     return res.status(200).json(pkg);
   } catch (error) {
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
   }
 };
 
 //controller for get all package details for booking page
 export const getAllPackages = async (req, res) => {
   try {
-    const defaultPackages = await DefaultPackage.find().populate('itineraries')
-    const packages = await Package.find().populate('itineraries');
+    const defaultPackages = await DefaultPackage.find().populate("itineraries");
+    const packages = await Package.find().populate("itineraries");
 
     return res.status(200).json({
-      message: 'Packages fetched successfully',
+      message: "Packages fetched successfully",
       packages,
-      defaultPackages
+      defaultPackages,
     });
   } catch (error) {
     return res.status(500).json({
-      message: 'Server error while fetching packages',
-      error: error.message
+      message: "Server error while fetching packages",
+      error: error.message,
     });
   }
 };
@@ -51,25 +53,26 @@ export const getAllVehicles = async (req, res) => {
     const vehicles = await Vehicle.find();
 
     return res.status(200).json({
-      message: 'Vehicles fetched successfully',
-      data: vehicles
+      message: "Vehicles fetched successfully",
+      data: vehicles,
     });
   } catch (error) {
     return res.status(500).json({
-      message: 'Server error while fetching vehicles',
-      error: error.message
+      message: "Server error while fetching vehicles",
+      error: error.message,
     });
   }
 };
-
 
 //controller for get hotels by rating
 export const getHotelsByRating = async (req, res) => {
   try {
     const { starRating } = req.body;
-    
+
     if (starRating === undefined || starRating === null) {
-      return res.status(400).json({ message: "Please provide starRating in request body" });
+      return res
+        .status(400)
+        .json({ message: "Please provide starRating in request body" });
     }
 
     const num = Number(starRating);
@@ -84,12 +87,10 @@ export const getHotelsByRating = async (req, res) => {
       hotels = await Hotel.find({ starRating: num });
     }
 
-
     return res.status(200).json({
       message: `Hotels with rating == ${num} fetched successfully`,
       hotels,
     });
-
   } catch (error) {
     return res.status(500).json({
       message: "Server error",
@@ -98,17 +99,18 @@ export const getHotelsByRating = async (req, res) => {
   }
 };
 
-
 //controller for create a booking
 export const createBooking = async (req, res) => {
   try {
     const user_id = req.user && req.user._id;
     if (!user_id) return res.status(401).json({ message: "Unauthorized" });
 
- 
     const {
       package_name,
       package_id,
+      client_name,
+      client_email,
+      client_phone,
       vehicle_name,
       vehicle_id,
       pickup_date,
@@ -134,26 +136,26 @@ export const createBooking = async (req, res) => {
       total_amount,
     } = req.body;
 
-    
-    
     if (total_amount === undefined || total_amount === null) {
       return res.status(400).json({ message: "total_amount is required" });
     }
 
     const user = await Register.findById(user_id).lean();
     if (!user) {
-      return res.status(404).json({ message: "User not found. Booking cannot proceed." });
+      return res
+        .status(404)
+        .json({ message: "User not found. Booking cannot proceed." });
     }
     const name = user.fullName;
     const email = user.email;
     const mobile_number = user.mobileNumber;
     const state = user.state;
-    
+
     // Helper to convert to ObjectId only when valid
     const asObjectId = (id) => {
       try {
         return id && mongoose.Types.ObjectId.isValid(id)
-          ? new mongoose.Types.ObjectId(id)   // ✅ use new
+          ? new mongoose.Types.ObjectId(id) // ✅ use new
           : undefined;
       } catch (err) {
         console.error("Invalid ObjectId:", id, err.message);
@@ -161,12 +163,15 @@ export const createBooking = async (req, res) => {
       }
     };
 
-
- 
     const newBooking = new Booking({
       user_id,
 
-      contact: {name, email, mobile_number, state},
+      contact: { name, email, mobile_number, state },
+      client_contact: {
+        name: client_name || "",
+        email: client_email || "",
+        phone: client_phone || "",
+      },
 
       // package
       package_name: package_name,
@@ -185,7 +190,7 @@ export const createBooking = async (req, res) => {
         drop_time: drop_time || "",
         drop_location: drop_location || "",
       },
-      
+
       guests: {
         adults_total: Number(adults_total),
         children: Number(children),
@@ -198,10 +203,9 @@ export const createBooking = async (req, res) => {
         breakfast: Boolean(extra_food.breakfast),
         lunchVeg: Boolean(extra_food.lunchVeg),
         lunchNonVeg: Boolean(extra_food.lunchNonVeg),
-        guideNeeded: Boolean(guideNeeded) 
-      },  
- 
-      
+        guideNeeded: Boolean(guideNeeded),
+      },
+
       hotel_id: asObjectId(hotel_id),
       hotel: {
         hotel_name: hotel_name,
@@ -209,23 +213,22 @@ export const createBooking = async (req, res) => {
         rooms: Number(rooms),
         extra_beds: Number(extra_beds),
       },
-      
+
       pricing: {
         agent_commission: Number(agent_commission),
         base_total: Number(base_total),
         total_amount: Number(total_amount),
-      }
-      
+      },
     });
 
     await newBooking.save();
 
-     const notification = new Notification({
+    const notification = new Notification({
       title: "Package Booking",
       type: "booking",
       recipient: user_id,
       booking: newBooking._id,
-      message: `Booking id:${newBooking._id} ${newBooking.package_name} on ${newBooking.dates?.pickup_date} is Created`
+      message: `Booking id:${newBooking._id} ${newBooking.package_name} on ${newBooking.dates?.pickup_date} is Created`,
     });
 
     await notification.save();
@@ -235,13 +238,14 @@ export const createBooking = async (req, res) => {
       booking: newBooking,
     });
   } catch (error) {
-     if (error.name === "ValidationError") {
-       const errors = Object.values(error.errors).map((err) => err.message);
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((err) => err.message);
       return res.status(400).json({ message: "Validation failed", errors });
     }
-    return res.status(500).json({ message: "Server error", error: error.message });
-    }
-  
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
 };
 
 export const createDefaultBooking = async (req, res) => {
@@ -252,6 +256,9 @@ export const createDefaultBooking = async (req, res) => {
     const {
       package_name,
       package_id,
+      client_name,
+      client_email,
+      client_phone,
       pickup_date,
       drop_date,
       adults_total,
@@ -260,9 +267,9 @@ export const createDefaultBooking = async (req, res) => {
       infants,
       agent_commission,
       base_total,
-      total_amount
-
+      total_amount,
     } = req.body;
+    console.log(client_phone);
 
     if (total_amount === undefined || total_amount === null) {
       return res.status(400).json({ message: "total_amount is required" });
@@ -270,18 +277,20 @@ export const createDefaultBooking = async (req, res) => {
 
     const user = await Register.findById(user_id).lean();
     if (!user) {
-      return res.status(404).json({ message: "User not found. Booking cannot proceed." });
+      return res
+        .status(404)
+        .json({ message: "User not found. Booking cannot proceed." });
     }
     const name = user.fullName;
     const email = user.email;
     const mobile_number = user.mobileNumber;
     const state = user.state;
-    
+
     // Helper to convert to ObjectId only when valid
     const asObjectId = (id) => {
       try {
         return id && mongoose.Types.ObjectId.isValid(id)
-          ? new mongoose.Types.ObjectId(id)   // ✅ use new
+          ? new mongoose.Types.ObjectId(id) // ✅ use new
           : undefined;
       } catch (err) {
         console.error("Invalid ObjectId:", id, err.message);
@@ -293,6 +302,12 @@ export const createDefaultBooking = async (req, res) => {
       user_id,
 
       contact: { name, email, mobile_number, state },
+
+      client_contact: {
+        name: client_name || "",
+        email: client_email || "",
+        phone: client_phone || "",
+      },
 
       package_name,
       package_id: asObjectId(package_id),
@@ -322,12 +337,12 @@ export const createDefaultBooking = async (req, res) => {
 
     await newBooking.save();
 
-     const notification = new Notification({
+    const notification = new Notification({
       title: "Package Booking",
       type: "booking",
       recipient: user_id,
       booking: newBooking._id,
-      message: `Booking id:${newBooking._id} ${newBooking.package_name} (Default Package) is Created`
+      message: `Booking id:${newBooking._id} ${newBooking.package_name} (Default Package) is Created`,
     });
 
     await notification.save();
@@ -336,21 +351,16 @@ export const createDefaultBooking = async (req, res) => {
       message: "Booking created successfully",
       booking: newBooking,
     });
-
-    
-    
   } catch (error) {
     if (error.name === "ValidationError") {
       const errors = Object.values(error.errors).map((err) => err.message);
       return res.status(400).json({ message: "Validation failed", errors });
     }
-    return res.status(500).json({ message: "Server error", error: error.message });
-    }
-  
-}
-
-
-
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+};
 
 export const getBookings = async (req, res) => {
   try {
@@ -361,8 +371,12 @@ export const getBookings = async (req, res) => {
     }
 
     // Fetch from both collections
-    const bookings = await Booking.find({ user_id: user._id }).sort({ createdAt: -1 });
-    const defaultPackageBookings = await DefaultPackageBooking.find({ user_id: user._id }).sort({ createdAt: -1 });
+    const bookings = await Booking.find({ user_id: user._id }).sort({
+      createdAt: -1,
+    });
+    const defaultPackageBookings = await DefaultPackageBooking.find({
+      user_id: user._id,
+    }).sort({ createdAt: -1 });
 
     // Add source field
     const bookingsWithSource = bookings.map((b) => ({
@@ -370,15 +384,18 @@ export const getBookings = async (req, res) => {
       source: "Booking",
     }));
 
-    const defaultPackageBookingsWithSource = defaultPackageBookings.map((d) => ({
-      ...d.toObject(),
-      source: "DefaultPackageBooking",
-    }));
+    const defaultPackageBookingsWithSource = defaultPackageBookings.map(
+      (d) => ({
+        ...d.toObject(),
+        source: "DefaultPackageBooking",
+      })
+    );
 
     // Merge and sort all by createdAt
-    const allBookings = [...bookingsWithSource, ...defaultPackageBookingsWithSource].sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
+    const allBookings = [
+      ...bookingsWithSource,
+      ...defaultPackageBookingsWithSource,
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     return res.status(200).json({
       message: "Bookings fetched successfully",
@@ -392,52 +409,95 @@ export const getBookings = async (req, res) => {
   }
 };
 
+export const changeStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    let type = "normal";
+    let updatedBooking = await Booking.findById(id);
+
+    if (!updatedBooking) {
+      type = "default";
+      updatedBooking = await DefaultPackageBooking.findById(id);
+    }
+
+    if (!updatedBooking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // ✅ Allow only quoted -> confirmed
+    if (updatedBooking.status === "quoted" && status === "confirmed") {
+      updatedBooking.status = "confirmed";
+      await updatedBooking.save();
+
+      return res.status(200).json({
+        message: "Booking status changed to 'confirmed'.",
+        booking: updatedBooking,
+        type,
+      });
+    }
+
+    // Block all other transitions
+    return res.status(403).json({
+      message: "You can only change status from 'quoted' to 'confirmed'.",
+    });
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((e) => e.message);
+      return res.status(400).json({ message: "Validation Error", errors });
+    }
+
+    console.error("Change status error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 
 //get all notifications by admin
 export const getAdminNotifications = async (req, res) => {
   try {
-    const user_id = req.user._id
+    const user_id = req.user._id;
 
     const filter = {
       $or: [
         { type: "system" }, // all system notifications
-        { 
-          type: { $in: ["booking", "success", "cancel"] }, 
-          recipient: user_id // only for booking/success
-        }
-      ]
+        {
+          type: { $in: ["booking", "success", "cancel"] },
+          recipient: user_id, // only for booking/success
+        },
+      ],
     };
 
-    const notifications = await Notification.find(filter).sort({ createdAt: -1 });
-
-
+    const notifications = await Notification.find(filter).sort({
+      createdAt: -1,
+    });
 
     return res.status(200).json({
-      message: 'Notifications fetched successfully',
-      notifications
+      message: "Notifications fetched successfully",
+      notifications,
     });
   } catch (error) {
     return res.status(500).json({
-      message: 'Server Error',
-      error: error.message
+      message: "Server Error",
+      error: error.message,
     });
   }
-}
+};
 
 //get pricing details for booking page
 export const getPricing = async (req, res) => {
   try {
-    const pricing = await Pricing.find({})
+    const pricing = await Pricing.find({});
 
     res.status(200).json({
-      message: 'Pricing fetched successfully',
-      pricing
-    })
+      message: "Pricing fetched successfully",
+      pricing,
+    });
   } catch (error) {
     res.status(500).json({
-      message: 'Server Error',
-      error: error.message
+      message: "Server Error",
+      error: error.message,
     });
   }
-}
-
+};

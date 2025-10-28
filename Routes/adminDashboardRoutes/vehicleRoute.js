@@ -1,7 +1,7 @@
 import express from "express"
 
 import { protectRoute, adminOnly } from "../../Middlewares/authMiddleware.js";
-import { addVehicle, getAllVehicles, updateVehicle, deleteVehicle } from "../../Controllers/adminDAshboardRoutes/vehicleController.js";
+import { addVehicle, getAllVehicles, updateVehicle, deleteVehicle } from "../../Controllers/adminDashboardControllers/vehicleController.js";
 
 
 const router = express.Router();

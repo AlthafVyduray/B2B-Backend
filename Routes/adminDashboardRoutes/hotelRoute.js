@@ -1,6 +1,6 @@
 import express from "express";
 import { protectRoute, adminOnly } from "../../Middlewares/authMiddleware.js";
-import { createHotel, getAllHotels, updateHotel, deleteHotel } from "../../Controllers/adminDAshboardRoutes/hotelController.js";
+import { createHotel, getAllHotels, updateHotel, deleteHotel } from "../../Controllers/adminDashboardControllers/hotelController.js";
 import { upload } from "../../Middlewares/uploadHotel.js"; // Multer + Cloudinary middleware
 
 const router = express.Router();

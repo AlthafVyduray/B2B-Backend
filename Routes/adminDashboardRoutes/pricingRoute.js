@@ -1,7 +1,7 @@
 import express from "express"
 
 import { protectRoute, adminOnly } from "../../Middlewares/authMiddleware.js";
-import { createPricing, getAllPricing, updatePricing, deletePricing } from "../../Controllers/adminDAshboardRoutes/pricingController.js";
+import { createPricing, getAllPricing, updatePricing, deletePricing } from "../../Controllers/adminDashboardControllers/pricingController.js";
 
 const router = express.Router()
 

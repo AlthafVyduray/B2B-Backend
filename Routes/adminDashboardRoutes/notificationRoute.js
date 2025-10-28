@@ -1,7 +1,7 @@
 import express from "express"
 
 import { protectRoute,adminOnly } from "../../Middlewares/authMiddleware.js";
-import { getAllNotifications, addNotification, deleteNotification, inactivateNotification } from "../../Controllers/adminDAshboardRoutes/notificationController.js";
+import { getAllNotifications, addNotification, deleteNotification, inactivateNotification } from "../../Controllers/adminDashboardControllers/notificationController.js";
 
 const router = express.Router();
 

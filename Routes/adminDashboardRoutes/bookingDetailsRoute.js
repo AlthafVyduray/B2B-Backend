@@ -1,5 +1,5 @@
 import express from "express"
-import { allBookings, cancelBooking, confirmBooking, deleteBooking, updateBooking, updateDefaultPackageBooking } from "../../Controllers/adminDAshboardRoutes/bookingDetailsController.js";
+import { allBookings, cancelBooking, changeStatus, confirmBooking, deleteBooking, updateBooking, updateDefaultPackageBooking } from "../../Controllers/adminDashboardControllers/bookingDetailsController.js";
 import { protectRoute, adminOnly } from "../../Middlewares/authMiddleware.js";
 
 
@@ -11,6 +11,7 @@ router.put("/:id", protectRoute, adminOnly, updateBooking);
 router.put("/default/:id", protectRoute, adminOnly, updateDefaultPackageBooking);
 router.put("/confirm/:id", protectRoute, adminOnly, confirmBooking);
 router.put("/cancel/:id", protectRoute, adminOnly, cancelBooking);
+router.put("/status/:id", protectRoute, adminOnly, changeStatus);
 
 
 export default router;
